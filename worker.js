@@ -45,15 +45,15 @@ export default {
         const segmentId = parseInt(url.pathname.split("/").pop().replace(".ts", ""));
         const startTime = segmentId * segmentDuration;
 
-        // Construct audio file URL
-        const audioUrl = new URL("/song.mp3", request.url).toString();
-        console.log(`[INFO] Attempting to fetch audio file from: ${audioUrl}`);
+        // Use env.ASSETS to fetch the audio file
+        const assetUrl = new URL("/song.mp3", "http://localhost"); // Localhost base for asset binding
+        console.log(`[INFO] Attempting to fetch audio file from ASSETS binding: ${assetUrl.pathname}`);
 
-        // Fetch audio file from static assets
-        const res = await fetch(audioUrl, { cf: { cacheEverything: true } });
+        // Fetch audio file using env.ASSETS
+        const res = await env.ASSETS.fetch(assetUrl);
         if (!res.ok) {
-          console.error(`[ERROR] Failed to fetch audio file: ${res.status} ${res.statusText}`);
-          return new Response(`Audio file not found at ${audioUrl}`, { status: 404 });
+          console.error(`[ERROR] Failed to fetch audio file from ASSETS: ${res.status} ${res.statusText}`);
+          return new Response(`Audio file not found in ASSETS`, { status: 404 });
         }
 
         const audioBuffer = await res.arrayBuffer();
@@ -78,9 +78,9 @@ export default {
     // Serve static assets directly (e.g., song.mp3 for debugging)
     if (url.pathname === "/song.mp3") {
       try {
-        const audioUrl = new URL("/song.mp3", request.url).toString();
-        console.log(`[INFO] Serving static asset: ${audioUrl}`);
-        const res = await fetch(audioUrl, { cf: { cacheEverything: true } });
+        const assetUrl = new URL("/song.mp3", "http://localhost");
+        console.log(`[INFO] Serving static asset from ASSETS binding: ${assetUrl.pathname}`);
+        const res = await env.ASSETS.fetch(assetUrl);
         if (!res.ok) {
           console.error(`[ERROR] Failed to fetch static asset: ${res.status} ${res.statusText}`);
           return new Response("Static asset not found", { status: 404 });
