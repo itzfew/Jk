@@ -1,9 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-
-    // Log incoming request
-    console.log(`Received request for: ${url.pathname}`);
+    console.log(`[INFO] Processing request for: ${url.pathname}`);
 
     // Serve HLS playlist (.m3u8)
     if (url.pathname.endsWith(".m3u8")) {
@@ -24,16 +22,18 @@ export default {
           playlist += `#EXTINF:${segmentDuration.toFixed(1)},\n/segment/${seq + i}.ts\n`;
         }
 
-        console.log(`Serving HLS playlist with sequence ${seq}`);
+        console.log(`[INFO] Serving HLS playlist with sequence ${seq}`);
         return new Response(playlist, {
           headers: {
             "Content-Type": "application/vnd.apple.mpegurl",
             "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD",
+            "Access-Control-Allow-Headers": "Range"
           }
         });
       } catch (error) {
-        console.error(`Error generating playlist: ${error.message}`);
+        console.error(`[ERROR] Failed to generate playlist: ${error.message}`);
         return new Response("Error generating playlist", { status: 500 });
       }
     }
@@ -45,35 +45,61 @@ export default {
         const segmentId = parseInt(url.pathname.split("/").pop().replace(".ts", ""));
         const startTime = segmentId * segmentDuration;
 
-        // URL of audio file in public/
+        // Construct audio file URL
         const audioUrl = new URL("/song.mp3", request.url).toString();
+        console.log(`[INFO] Attempting to fetch audio file from: ${audioUrl}`);
 
         // Fetch audio file from static assets
-        const res = await fetch(audioUrl);
+        const res = await fetch(audioUrl, { cf: { cacheEverything: true } });
         if (!res.ok) {
-          console.error(`Failed to fetch audio file: ${res.status}`);
-          return new Response("Audio file not found", { status: 404 });
+          console.error(`[ERROR] Failed to fetch audio file: ${res.status} ${res.statusText}`);
+          return new Response(`Audio file not found at ${audioUrl}`, { status: 404 });
         }
 
         const audioBuffer = await res.arrayBuffer();
-        console.log(`Serving segment ${segmentId} for time ${startTime}s`);
+        console.log(`[INFO] Serving segment ${segmentId} for time ${startTime}s`);
 
-        // Note: This is still a simplified approach, serving the full MP3
-        // For true HLS segment slicing, external processing (e.g., FFmpeg) is needed
+        // Note: Serving full MP3 as a segment (simplified approach)
         return new Response(audioBuffer, {
           headers: {
             "Content-Type": "video/mp2t",
             "Cache-Control": "public, max-age=10",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD",
+            "Access-Control-Allow-Headers": "Range"
           }
         });
       } catch (error) {
-        console.error(`Error serving segment: ${error.message}`);
+        console.error(`[ERROR] Failed to serve segment: ${error.message}`);
         return new Response("Error serving segment", { status: 500 });
       }
     }
 
-    console.warn(`Resource not found: ${url.pathname}`);
+    // Serve static assets directly (e.g., song.mp3 for debugging)
+    if (url.pathname === "/song.mp3") {
+      try {
+        const audioUrl = new URL("/song.mp3", request.url).toString();
+        console.log(`[INFO] Serving static asset: ${audioUrl}`);
+        const res = await fetch(audioUrl, { cf: { cacheEverything: true } });
+        if (!res.ok) {
+          console.error(`[ERROR] Failed to fetch static asset: ${res.status} ${res.statusText}`);
+          return new Response("Static asset not found", { status: 404 });
+        }
+        const audioBuffer = await res.arrayBuffer();
+        return new Response(audioBuffer, {
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Cache-Control": "public, max-age=3600",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      } catch (error) {
+        console.error(`[ERROR] Failed to serve static asset: ${error.message}`);
+        return new Response("Error serving static asset", { status: 500 });
+      }
+    }
+
+    console.warn(`[WARN] Resource not found: ${url.pathname}`);
     return new Response("Not found", { status: 404 });
   }
 };
