@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jammu & Kashmir Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .button-container {
+            position: absolute;
+            bottom: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+        .bottom-left {
+            left: 10px;
+        }
+        .bottom-right {
+            right: 10px;
+        }
+        .map-button {
+            background-color: #ffffff;
+            color: #000000;
+            border: 1px solid #000000;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s;
+        }
+        .map-button:hover {
+            background-color: #f0f0f0;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1001;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #000000;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <span>Loading map...</span>
+    </div>
+    <div id="map"></div>
+    <div class="button-container bottom-left">
+        <div class="tooltip">
+            <button class="map-button" id="nav-button" onclick="navigateToJK()">
+                <i class="fas fa-directions"></i>
+            </button>
+            <span class="tooltiptext">Navigate to J&K</span>
+        </div>
+        <div class="tooltip">
+            <button class="map-button" id="locate-button" onclick="locateUser()">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+            <span class="tooltiptext">Find My Location</span>
+        </div>
+    </div>
+    <div class="button-container bottom-right">
+        <div class="tooltip">
+            <button class="map-button" id="satellite-button" onclick="toggleSatellite()">
+                <i class="fas fa-satellite"></i>
+            </button>
+            <span class="tooltiptext">Toggle Satellite View</span>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Show loading overlay
+        const loadingOverlay = document.getElementById('loading');
+
+        // Initialize the map centered on Jammu & Kashmir
+        const map = L.map('map').setView([33.7782, 76.5762], 7);
+
+        // Define map layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+            tileSize: 256
+        });
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, USGS, NOAA',
+            maxZoom: 19,
+            tileSize: 256
+        });
+        const labelLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            opacity: 0.5,
+            pane: 'overlayPane',
+            maxZoom: 19,
+            tileSize: 256
+        });
+
+        // Add default OSM layer
+        osmLayer.addTo(map);
+
+        // Placeholder GeoJSON for Jammu & Kashmir districts
+        // Replace this with your full GeoJSON data
+        const jkDistrictsGeoJSON = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "dt_code": "009",
+                        "district": "Bandipora",
+                        "st_nm": "Jammu and Kashmir",
+                        "st_code": "01",
+                        "year": "2011_c"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [75.31247067897108, 34.366688352841386],
+                            [75.2745448610667, 34.36387857817359],
+                            [75.2500, 34.3500], // Add your coordinates here
+                            [75.3000, 34.3700], // Example placeholder coordinates
+                            [75.31247067897108, 34.366688352841386] // Close the polygon
+                        ]]
+                    }
+                },
+                // Paste your additional district GeoJSON features here
+                // Example structure for another district:
+                /*
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "dt_code": "010",
+                        "district": "Another District",
+                        "st_nm": "Jammu and Kashmir",
+                        "st_code": "01",
+                        "year": "2011_c"
+                    },
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[
+                            [longitude1, latitude1],
+                            [longitude2, latitude2],
+                            ...
+                        ]]
+                    }
+                }
+                */
+            ]
+        };
+
+        // Function to calculate centroid of a polygon
+        function getCentroid(coordinates) {
+            let xSum = 0, ySum = 0, count = 0;
+            coordinates[0].forEach(coord => {
+                xSum += coord[0];
+                ySum += coord[1];
+                count++;
+            });
+            return [ySum / count, xSum / count];
+        }
+
+        // Add districts and markers when map is ready
+        map.whenReady(() => {
+            const districtLayer = L.geoJSON(jkDistrictsGeoJSON, {
+                style: {
+                    color: '#FF0000',
+                    weight: 2,
+                    fillColor: '#FF0000',
+                    fillOpacity: 0.2
+                },
+                onEachFeature: (feature, layer) => {
+                    // Add popup with district name
+                    layer.bindPopup(feature.properties.district);
+                    // Calculate centroid and add marker
+                    if (feature.geometry.type === 'Polygon') {
+                        const centroid = getCentroid(feature.geometry.coordinates);
+                        L.circleMarker(centroid, {
+                            radius: 5,
+                            color: '#000',
+                            fillColor: '#000',
+                            fillOpacity: 1
+                        }).addTo(map)
+                         .bindPopup(feature.properties.district);
+                    }
+                }
+            }).addTo(map);
+            hideLoading(); // Hide loading after map and districts are ready
+        });
+
+        // Variable to store user's location marker and watch ID
+        let userMarker = null;
+        let watchId = null;
+        let isSatelliteView = false;
+
+        // Function to hide loading overlay
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // Function to locate user
+        function locateUser() {
+            if (navigator.geolocation) {
+                loadingOverlay.style.display = 'flex';
+                
+                // Clear any existing watch to avoid conflicts
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+
+                // Start watching position for fresh data
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+
+                        // Remove existing marker if present
+                        if (userMarker) {
+                            map.removeLayer(userMarker);
+                        }
+
+                        // Add marker for user's location
+                        userMarker = L.marker([userLat, userLng]).addTo(map)
+                            .bindPopup('You are here!').openPopup();
+
+                        // Pan to user's location
+                        map.panTo([userLat, userLng]);
+                        hideLoading();
+
+                        // Clear watch after successful location to avoid unnecessary updates
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        let errorMessage = 'Unable to get your location. Please ensure location services are enabled and try again.';
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMessage = 'Location access denied. Please allow location access in your browser settings and try again.';
+                        } else if (error.code === error.POSITION_UNAVAILABLE) {
+                            errorMessage = 'Location information is unavailable. Please check your network or GPS and try again.';
+                        } else if (error.code === error.TIMEOUT) {
+                            errorMessage = 'Location request timed out. Please try again.';
+                        }
+                        alert(errorMessage);
+                        hideLoading();
+                    },
+                    {
+                        enableHighAccuracy: true, // Request high-accuracy location
+                        timeout: 10000, // 10-second timeout
+                        maximumAge: 0 // Prevent cached position
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser.');
+                hideLoading();
+            }
+        }
+
+        // Function to toggle satellite view with labels
+        function toggleSatellite() {
+            loadingOverlay.style.display = 'flex';
+            setTimeout(() => {
+                if (isSatelliteView) {
+                    map.removeLayer(satelliteLayer);
+                    map.removeLayer(labelLayer);
+                    osmLayer.addTo(map);
+                } else {
+                    map.removeLayer(osmLayer);
+                    satelliteLayer.addTo(map);
+                    labelLayer.addTo(map);
+                }
+                isSatelliteView = !isSatelliteView;
+                hideLoading();
+            }, 100);
+        }
+
+        // Function to open Google Maps navigation
+        function navigateToJK() {
+            if (navigator.geolocation) {
+                loadingOverlay.style.display = 'flex';
+                
+                // Clear any existing watch
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const jkLat = 33.7782; // Jammu & Kashmir approximate center
+                        const jkLng = 76.5762;
+                        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${jkLat},${jkLng}&travelmode=driving`;
+                        window.open(googleMapsUrl, '_blank');
+                        hideLoading();
+
+                        // Clear watch after navigation
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        let errorMessage = 'Unable to get your location for navigation. Please ensure location services are enabled and try again.';
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMessage = 'Location access denied. Please allow location access in your browser settings and try again.';
+                        }
+                        alert(errorMessage);
+                        hideLoading();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser.');
+                hideLoading();
+            }
+        }
+
+        // Initial user location fetch
+        locateUser();
+    </script>
+</body>
+</html>
