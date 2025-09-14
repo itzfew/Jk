@@ -1,10 +1,12 @@
 # wrangler.toml
-name = "my-radio-worker"
+name = "quranradio"
 main = "worker.js"
 compatibility_date = "2025-09-14"
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
-directory = "./public"
+directory = "public"
+binding = "ASSETS"
 
 [observability]
 [observability.logs]
