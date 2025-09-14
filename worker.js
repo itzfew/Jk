@@ -2,7 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // ✅ Serve live playlist
+    // Serve playlist
     if (url.pathname.endsWith("/stream.m3u8")) {
       const segmentDuration = 10;
       const now = Math.floor(Date.now() / 1000);
@@ -14,7 +14,6 @@ export default {
 #EXT-X-MEDIA-SEQUENCE:${seq}
 `;
 
-      // Generate next 5 segments
       for (let i = 0; i < 5; i++) {
         playlist += `#EXTINF:${segmentDuration},\n/segment/${seq + i}.mp3\n`;
       }
@@ -24,24 +23,26 @@ export default {
       });
     }
 
-    // ✅ Serve "fake live" segments using song.mp3
+    // Serve segments
     if (url.pathname.startsWith("/segment/")) {
-      // Instead of slicing, just return the MP3 (demo mode)
-      const assetUrl = new URL("/song.mp3", request.url).toString();
-
-      console.log("Serving segment from:", assetUrl);
-
-      const res = await fetch(assetUrl);
-      if (!res.ok) {
+      // Fetch audio from assets binding
+      try {
+        const assetResponse = await env.ASSETS.fetch(new Request("/song.mp3"));
+        return new Response(assetResponse.body, {
+          headers: { "Content-Type": "audio/mpeg" }
+        });
+      } catch (err) {
+        console.error("Failed to fetch audio from assets:", err);
         return new Response("Audio not found", { status: 404 });
       }
-
-      return new Response(res.body, {
-        headers: { "Content-Type": "audio/mpeg" }
-      });
     }
 
-    // ✅ Fallback: serve static assets
-    return env.ASSETS.fetch(request);
+    // Fallback: serve static assets
+    try {
+      return await env.ASSETS.fetch(request);
+    } catch (err) {
+      console.error("Asset fetch failed:", err);
+      return new Response("Not found", { status: 404 });
+    }
   }
 };
