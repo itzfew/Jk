@@ -2,16 +2,10 @@ name = "quranradio"
 main = "worker.js"
 compatibility_date = "2025-09-14"
 
-# Assets binding
-[[bindings]]
-type = "durable_objects_namespace" # not needed for assets
-# Correct binding for static assets:
-type = "kv_namespace"
-name = "ASSETS" # This is the name you will use in worker
-# Actually for static assets folder:
-type = "static_assets"
-name = "ASSETS"
-directory = "./public"
+# Static assets binding
+[site]
+bucket = "./public"
+entry-point = "worker"
 
 [observability.logs]
 enabled = true
