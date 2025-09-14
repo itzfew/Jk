@@ -2,9 +2,9 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // ✅ Serve dynamic playlist
-    if (url.pathname.endsWith(".m3u8")) {
-      const segmentDuration = 10; // seconds per segment
+    // ✅ Serve live playlist
+    if (url.pathname.endsWith("/stream.m3u8")) {
+      const segmentDuration = 10;
       const now = Math.floor(Date.now() / 1000);
       const seq = Math.floor(now / segmentDuration);
 
@@ -14,9 +14,9 @@ export default {
 #EXT-X-MEDIA-SEQUENCE:${seq}
 `;
 
-      // Generate next 5 "fake" segments
+      // Generate next 5 segments
       for (let i = 0; i < 5; i++) {
-        playlist += `#EXTINF:${segmentDuration},\n/segment/${seq + i}.ts\n`;
+        playlist += `#EXTINF:${segmentDuration},\n/segment/${seq + i}.mp3\n`;
       }
 
       return new Response(playlist, {
@@ -24,27 +24,24 @@ export default {
       });
     }
 
-    // ✅ Serve segments (using your audio in /public)
+    // ✅ Serve "fake live" segments using song.mp3
     if (url.pathname.startsWith("/segment/")) {
-      const segmentDuration = 10;
-      const segmentId = parseInt(url.pathname.split("/").pop().replace(".ts", ""));
-      const startTime = segmentId * segmentDuration;
+      // Instead of slicing, just return the MP3 (demo mode)
+      const assetUrl = new URL("/song.mp3", request.url).toString();
 
-      // URL of your audio file in `public/`
-      const audioUrl = new URL("/song.mp3", request.url).toString();
+      console.log("Serving segment from:", assetUrl);
 
-      // Fetch audio file from static assets
-      const res = await fetch(audioUrl);
-      const audioBuffer = await res.arrayBuffer();
+      const res = await fetch(assetUrl);
+      if (!res.ok) {
+        return new Response("Audio not found", { status: 404 });
+      }
 
-      // ⚠️ Simplified: always serves full MP3
-      // (true slicing needs ffmpeg, can’t run inside Workers)
-      // HLS player will still “feel” like live radio
-      return new Response(audioBuffer, {
-        headers: { "Content-Type": "video/mp2t" }
+      return new Response(res.body, {
+        headers: { "Content-Type": "audio/mpeg" }
       });
     }
 
-    return new Response("Not found", { status: 404 });
+    // ✅ Fallback: serve static assets
+    return env.ASSETS.fetch(request);
   }
 };
