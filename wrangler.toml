@@ -1,0 +1,9 @@
+name = "quranradio"
+main = "worker.js"
+compatibility_date = "2025-09-14"
+
+[assets]
+directory = "./public"
+
+[observability.logs]
+enabled = true
