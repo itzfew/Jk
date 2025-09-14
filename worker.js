@@ -45,15 +45,25 @@ export default {
         const segmentId = parseInt(url.pathname.split("/").pop().replace(".ts", ""));
         const startTime = segmentId * segmentDuration;
 
-        // Use env.ASSETS to fetch the audio file
-        const assetUrl = new URL("/song.mp3", "http://localhost"); // Localhost base for asset binding
+        // Attempt to fetch audio file using env.ASSETS
+        let res;
+        const assetUrl = new URL("/song.mp3", "http://localhost");
         console.log(`[INFO] Attempting to fetch audio file from ASSETS binding: ${assetUrl.pathname}`);
 
-        // Fetch audio file using env.ASSETS
-        const res = await env.ASSETS.fetch(assetUrl);
+        try {
+          res = await env.ASSETS.fetch(assetUrl);
+          console.log(`[INFO] Successfully fetched audio file from ASSETS binding`);
+        } catch (assetError) {
+          console.warn(`[WARN] Failed to fetch from ASSETS: ${assetError.message}. Falling back to direct fetch.`);
+          // Fallback to direct fetch since /song.mp3 works directly
+          const directUrl = new URL("/song.mp3", request.url).toString();
+          console.log(`[INFO] Attempting direct fetch from: ${directUrl}`);
+          res = await fetch(directUrl, { cf: { cacheEverything: true } });
+        }
+
         if (!res.ok) {
-          console.error(`[ERROR] Failed to fetch audio file from ASSETS: ${res.status} ${res.statusText}`);
-          return new Response(`Audio file not found in ASSETS`, { status: 404 });
+          console.error(`[ERROR] Failed to fetch audio file: ${res.status} ${res.statusText}`);
+          return new Response(`Audio file not found`, { status: 404 });
         }
 
         const audioBuffer = await res.arrayBuffer();
