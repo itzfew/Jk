@@ -1,5 +1,5 @@
 # wrangler.toml
-name = "my-radio-worker"
+name = "quranradio"
 main = "worker.js"
 compatibility_date = "2025-09-14"
 
