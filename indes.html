@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Video Downloader</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    input { width: 300px; padding: 8px; }
+    button { padding: 8px 15px; }
+  </style>
+</head>
+<body>
+  <h2>Paste Video URL</h2>
+  <form id="downloadForm">
+    <input type="text" id="url" placeholder="Enter video URL" required>
+    <button type="submit">Download</button>
+  </form>
+  <p id="msg"></p>
+
+  <script>
+    document.getElementById("downloadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      let url = document.getElementById("url").value;
+      let res = await fetch("http://localhost:8080/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+      let data = await res.text();
+      document.getElementById("msg").innerText = data;
+    });
+  </script>
+</body>
+</html>
