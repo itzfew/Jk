@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        .action-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        #reactions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .reaction-btn {
+            background-color: #28a745;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .reaction-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Telegram Bot Controller</h1>
+        <p>Use this webapp to interact with Telegram groups via Bot API. Enter your bot token, chat ID, and optional message ID. Data persists in browser cache.</p>
+
+        <div class="input-group">
+            <label for="token">Bot Token:</label>
+            <input type="password" id="token" placeholder="e.g., 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11">
+        </div>
+
+        <div class="input-group">
+            <label for="chatid">Chat ID:</label>
+            <input type="text" id="chatid" placeholder="e.g., -1002669316482">
+        </div>
+
+        <div class="input-group">
+            <label for="msgid">Message ID (optional, for delete/reply/react):</label>
+            <input type="text" id="msgid" placeholder="e.g., 1234">
+        </div>
+
+        <button onclick="saveConfig()">Save Config</button>
+        <button onclick="clearConfig()">Clear Config</button>
+
+        <div id="config-status" class="response"></div>
+
+        <div class="action-section">
+            <h2>Actions</h2>
+
+            <div class="input-group">
+                <label for="messageText">Message Text (for send/reply):</label>
+                <textarea id="messageText" rows="3" placeholder="Enter message here..."></textarea>
+            </div>
+
+            <button onclick="sendMessage()">Send Message</button>
+            <button onclick="replyMessage()">Reply to Message</button>
+            <button class="danger" onclick="deleteMessage()">Delete Message</button>
+
+            <div class="input-group">
+                <label for="reactionEmoji">Reaction Emoji (for add reaction):</label>
+                <input type="text" id="reactionEmoji" placeholder="e.g., 👍">
+                <button onclick="addReaction()">Add Reaction</button>
+            </div>
+
+            <!-- Predefined reactions -->
+            <div id="reactions">
+                <button class="reaction-btn" onclick="quickReact('👍')">👍</button>
+                <button class="reaction-btn" onclick="quickReact('❤️')">❤️</button>
+                <button class="reaction-btn" onclick="quickReact('😂')">😂</button>
+                <button class="reaction-btn" onclick="quickReact('😮')">😮</button>
+                <button class="reaction-btn" onclick="quickReact('😢')">😢</button>
+                <button class="reaction-btn" onclick="quickReact('😡')">😡</button>
+            </div>
+
+            <div class="input-group">
+                <label for="editText">Edit Message Text:</label>
+                <textarea id="editText" rows="3" placeholder="New text for edit..."></textarea>
+                <button onclick="editMessage()">Edit Message</button>
+            </div>
+
+            <button onclick="getChatInfo()">Get Chat Info</button>
+
+            <div id="response" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'telegram-bot-config';
+        const API_BASE = 'https://api.telegram.org/bot';
+
+        // Load config from localStorage on page load
+        window.onload = function() {
+            loadConfig();
+            showStatus('Config loaded from cache.');
+        };
+
+        function loadConfig() {
+            const config = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            document.getElementById('token').value = config.token || '';
+            document.getElementById('chatid').value = config.chatid || '';
+            document.getElementById('msgid').value = config.msgid || '';
+        }
+
+        function saveConfig() {
+            const config = {
+                token: document.getElementById('token').value,
+                chatid: document.getElementById('chatid').value,
+                msgid: document.getElementById('msgid').value
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            showStatus('Config saved to cache.', 'success');
+        }
+
+        function clearConfig() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('token').value = '';
+            document.getElementById('chatid').value = '';
+            document.getElementById('msgid').value = '';
+            showStatus('Config cleared.', 'error');
+        }
+
+        function showStatus(message, type = '') {
+            const el = document.getElementById('config-status');
+            el.textContent = message;
+            el.className = `response ${type}`;
+        }
+
+        function showResponse(message, type = '') {
+            const el = document.getElementById('response');
+            el.textContent = JSON.stringify(message, null, 2);
+            el.className = `response ${type}`;
+        }
+
+        async function apiCall(method, params = {}) {
+            const token = document.getElementById('token').value;
+            if (!token) {
+                showResponse({ error: 'Bot token is required.' }, 'error');
+                return;
+            }
+            const chatid = document.getElementById('chatid').value;
+            if (!chatid) {
+                showResponse({ error: 'Chat ID is required.' }, 'error');
+                return;
+            }
+
+            const url = `${API_BASE}${token}/${method}`;
+            const body = JSON.stringify({ chat_id: chatid, ...params });
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    showResponse(data, 'success');
+                } else {
+                    showResponse(data, 'error');
+                }
+            } catch (error) {
+                showResponse({ error: error.message }, 'error');
+            }
+        }
+
+        async function sendMessage() {
+            const text = document.getElementById('messageText').value;
+            if (!text) {
+                showResponse({ error: 'Message text is required.' }, 'error');
+                return;
+            }
+            await apiCall('sendMessage', { text });
+        }
+
+        async function replyMessage() {
+            const text = document.getElementById('messageText').value;
+            const msgid = document.getElementById('msgid').value;
+            if (!text) {
+                showResponse({ error: 'Message text is required.' }, 'error');
+                return;
+            }
+            if (!msgid) {
+                showResponse({ error: 'Message ID is required for reply.' }, 'error');
+                return;
+            }
+            await apiCall('sendMessage', { text, reply_to_message_id: parseInt(msgid) });
+        }
+
+        async function deleteMessage() {
+            const msgid = document.getElementById('msgid').value;
+            if (!msgid) {
+                showResponse({ error: 'Message ID is required for delete.' }, 'error');
+                return;
+            }
+            await apiCall('deleteMessage', { message_id: parseInt(msgid) });
+        }
+
+        async function addReaction() {
+            const emoji = document.getElementById('reactionEmoji').value;
+            const msgid = document.getElementById('msgid').value;
+            if (!msgid) {
+                showResponse({ error: 'Message ID is required for reaction.' }, 'error');
+                return;
+            }
+            if (!emoji) {
+                showResponse({ error: 'Reaction emoji is required.' }, 'error');
+                return;
+            }
+            await apiCall('setMessageReaction', { message_id: parseInt(msgid), reaction: [{ type: 'emoji', emoji }] });
+        }
+
+        function quickReact(emoji) {
+            document.getElementById('reactionEmoji').value = emoji;
+            addReaction();
+        }
+
+        async function editMessage() {
+            const text = document.getElementById('editText').value;
+            const msgid = document.getElementById('msgid').value;
+            if (!text) {
+                showResponse({ error: 'Edit text is required.' }, 'error');
+                return;
+            }
+            if (!msgid) {
+                showResponse({ error: 'Message ID is required for edit.' }, 'error');
+                return;
+            }
+            await apiCall('editMessageText', { message_id: parseInt(msgid), text });
+        }
+
+        async function getChatInfo() {
+            await apiCall('getChat');
+        }
+    </script>
+</body>
+</html>
