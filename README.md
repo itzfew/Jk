@@ -16,6 +16,7 @@ pkg update
 pkg install python
 pip install flask yt-dlp
 mkdir -p ~/download_logs ~/download_downloads
+pkg install git
 git clone https://github.com/itzfew/itzfew-termux.git
 cd itzfew-termux
 python social.py
