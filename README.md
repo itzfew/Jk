@@ -31,3 +31,5 @@ After running `python social.py`, the server will start on http://localhost:8080
 3. Paste the video URL and select the platform to download.
 
 Downloads will be saved to `~/download_downloads`, and logs to `~/download_logs`.
+## Warning
+# Don't try to edit or modify this tool. This tool is only for educational purpose. If you use this tool for other purposes except education we will not be responsible in such cases.
