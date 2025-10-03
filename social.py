@@ -10,7 +10,7 @@ DOWNLOAD_DIR = os.path.expanduser("~/dawoalod_downloads")
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-PASSWORD = "Waheed123"
+PASSWORD = "admin123"
 # Keep track of last downloaded file (global)
 last_downloaded_file = None
 
